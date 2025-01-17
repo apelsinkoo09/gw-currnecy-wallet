@@ -79,3 +79,26 @@ func (u *UserStruct) LoginHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
+
+// Test
+func (u *UserStruct) GetUserDataHandler(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+
+	user, err := u.db.GetUserData(ctx, req.Username)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}

@@ -11,6 +11,8 @@ import (
 	"gw-currncy-wallet/internal/handlers"
 	"gw-currncy-wallet/internal/storages/postgres"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	proto_exchange "github.com/apelsinkoo09/proto-exchange/exchange"
 )
 
@@ -21,7 +23,7 @@ func main() {
 	}
 	defer db.Close()
 
-	grpcConn, err := grpc.NewClient("localhost:50051")
+	grpcConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC server: %v", err)
 	}
@@ -41,6 +43,7 @@ func main() {
 
 	r.POST("/api/v1/login", userService.LoginHandler)
 	r.POST("/api/v1/register", userService.RegisterHandler)
+	r.GET("/api/v1/getUser", userService.GetUserDataHandler)
 
 	r.GET("/api/v1/wallet", walletService.GetBalanceHandler)
 	r.POST("/api/v1/wallet/deposit", walletService.DepositHandler)

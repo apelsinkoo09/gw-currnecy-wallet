@@ -33,7 +33,7 @@ func (s *StorageConn) CreateUser(ctx context.Context, username, email, hashedPas
 
 	//Creatinmg User
 	var userID int
-	query := `insert Into user (username, email, password)
+	query := `insert Into public.users (username, email, password)
 	values ($1, $2, $3)
 	returning id;`
 
@@ -85,7 +85,7 @@ func (s *StorageConn) CreateUser(ctx context.Context, username, email, hashedPas
 
 func (s *StorageConn) GetUserData(ctx context.Context, username string) (*User, error) {
 	var user User
-	query := `select id, username, email, password from user where username = $1`
+	query := `select id, username, email, password from users where username = $1`
 	err := s.DB.QueryRowContext(ctx, query, username).Scan(&user.ID, &user.Username, &user.Email, &user.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request %v", err)
