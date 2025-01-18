@@ -4,12 +4,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-
+	_ "gw-currncy-wallet/docs"
+	"gw-currncy-wallet/internal/auth"
 	"gw-currncy-wallet/internal/changer"
 	"gw-currncy-wallet/internal/handlers"
 	"gw-currncy-wallet/internal/storages/postgres"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -41,14 +46,20 @@ func main() {
 
 	r := gin.Default()
 
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	r.POST("/api/v1/login", userService.LoginHandler)
 	r.POST("/api/v1/register", userService.RegisterHandler)
 	r.GET("/api/v1/getUser", userService.GetUserDataHandler)
 
-	r.GET("/api/v1/wallet", walletService.GetBalanceHandler)
-	r.POST("/api/v1/wallet/deposit", walletService.DepositHandler)
-	r.POST("/api/v1/wallet/withdraw", walletService.WithdrawHandler)
-	r.POST("/api/v1/wallet/exchange", walletService.ExchangeHandler)
+	protected := r.Group("/api/v1")
+	protected.Use(auth.JWTMiddleware())
+	{
+		protected.GET("/balance", walletService.GetBalanceHandler)
+		protected.POST("/wallet/deposit", walletService.DepositHandler)
+		protected.POST("/wallet/withdraw", walletService.WithdrawHandler)
+		protected.POST("/wallet/exchange", walletService.ExchangeHandler)
+	}
 
 	log.Println("Starting server on :8080...")
 	if err := r.Run(":8080"); err != nil {

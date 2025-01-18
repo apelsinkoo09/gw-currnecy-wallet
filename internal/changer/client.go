@@ -8,12 +8,13 @@ import (
 	_ "google.golang.org/grpc/credentials/insecure"
 )
 
+// Exchanger Client struct
 type ExchangerClient struct {
 	client proto_exchange.ExchangeServiceClient
 	cache  *GetExchangeRateCache
 }
 
-// Create gRPC client
+// Create gRPC client with cache
 func NewExchangerClient(client proto_exchange.ExchangeServiceClient, cache *GetExchangeRateCache) *ExchangerClient {
 	return &ExchangerClient{
 		client: client,
@@ -21,17 +22,7 @@ func NewExchangerClient(client proto_exchange.ExchangeServiceClient, cache *GetE
 	}
 }
 
-// func Client() (*ExchangerClient, error) {
-// 	conn, err := grpc.NewClient("localhost:50051")
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to connect to gRPC server: %v", err)
-// 	}
-// 	client := proto_exchange.NewExchangeServiceClient(conn)
-// 	exchangerClient := ExchangerClient{client: client}
-// 	return &exchangerClient, nil
-// }
-
-// Get Rate through gRPC. If rate has in cache, take it from cache
+// Get exchange rate through gRPC from exchange service
 func (e *ExchangerClient) GetExchangeRate(ctx context.Context, fromCurrency, toCurrency string) (float64, error) {
 
 	if rate, found := e.cache.Get(fromCurrency, toCurrency); found {

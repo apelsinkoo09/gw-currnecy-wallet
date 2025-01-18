@@ -15,10 +15,35 @@ type UserStruct struct {
 	db *postgres.StorageConn
 }
 
+type LoginRequset struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type RegisterRequest struct {
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
 func NewUserService(db *postgres.StorageConn) *UserStruct {
 	return &UserStruct{db: db}
 }
 
+// RegisterHandler godoc
+// @Summary      Register a new user
+// @Description  Create a new user account with username, email, and password
+// @Tags         User
+// @Accept       json
+// @Produce      json
+//
+//	@Param        input body RegisterRequest true "User registration data"
+//
+// @Success      201  {object}  map[string]string "User registered successfully"
+// @Failure      400  {object}  map[string]string "Invalid input"
+// @Failure      409  {object}  map[string]string "Username or email already exists"
+// @Failure      500  {object}  map[string]string "Internal Server Error"
+// @Router       /api/v1/register [post]
 func (u *UserStruct) RegisterHandler(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
@@ -46,6 +71,20 @@ func (u *UserStruct) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully", "user_id": userID})
 }
 
+// LoginHandler godoc
+// @Summary      User login
+// @Description  Authenticate user and return JWT token
+// @Tags         User
+// @Accept       json
+// @Produce      json
+//
+//	@Param        input body LoginRequset true "Login data"
+//
+// @Success      200  {object}  map[string]string "JWT token"
+// @Failure      400  {object}  map[string]string "Invalid input"
+// @Failure      401  {object}  map[string]string "Invalid username or password"
+// @Failure      500  {object}  map[string]string "Internal Server Error"
+// @Router       /api/v1/login [post]
 func (u *UserStruct) LoginHandler(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`

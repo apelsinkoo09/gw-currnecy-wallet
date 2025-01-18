@@ -9,7 +9,7 @@ type GetExchangeRateCache struct{
 	cache *cache.Cache
 }
 
-// Create cache
+// Create rate cache
 func RateCache(defaultExpiration, cleanupInterval time.Duration) *GetExchangeRateCache{
 	return &GetExchangeRateCache{
 		cache: cache.New(defaultExpiration, cleanupInterval),
