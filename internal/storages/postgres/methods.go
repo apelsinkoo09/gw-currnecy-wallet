@@ -44,10 +44,12 @@ func (s *StorageConn) CreateUser(ctx context.Context, username, email, hashedPas
 	var check checkPar
 
 	//Check existing username or email
-	checkString := s.DB.QueryRowContext(ctx, "select from user where username = $1 and email = $2", username, email)
+	checkString := s.DB.QueryRowContext(ctx, "select from public.users where username = $1 and email = $2", username, email)
 	err = checkString.Scan(&check.username, &check.email)
-	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %v", err)
+	if err == sql.ErrNoRows {
+
+	} else if err != nil {
+		return 0, fmt.Errorf("failed to execute check user request: %v", err)
 	}
 	if check.username == username || check.email == email {
 		file, _ := os.Open("../666.txt")
@@ -60,7 +62,7 @@ func (s *StorageConn) CreateUser(ctx context.Context, username, email, hashedPas
 	}
 	err = s.DB.QueryRowContext(ctx, query, username, email, hashedPassword).Scan(&userID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %v", err)
+		return 0, fmt.Errorf("failed to execute create user request: %v", err)
 	}
 
 	//Creating wallet
@@ -94,7 +96,7 @@ func (s *StorageConn) GetUserData(ctx context.Context, username string) (*User, 
 }
 
 func (s *StorageConn) GetBalance(ctx context.Context, userID int) (map[string]float64, error) {
-	query := `select currency, wallet from wallet 
+	query := `select currency, amount from wallet 
 	where user_id = $1`
 
 	rows, err := s.DB.QueryContext(ctx, query, userID)

@@ -11,10 +11,16 @@ import (
 
 type WalletService struct {
 	db        *postgres.StorageConn
-	exchanger *exchanger.ExchangerClient // gRPC-клиент
+	exchanger *exchanger.ExchangerClient
 }
 
-// NewWalletService создает новый сервис кошельков
+type ExchangeRequest struct {
+	FromCurrency string  `json:"from_currency" binding:"required"` // Исходная валюта
+	ToCurrency   string  `json:"to_currency" binding:"required"`   // Целевая валюта
+	Amount       float64 `json:"amount" binding:"required,gt=0"`   // Сумма для обмена
+}
+
+// NewWalletService create new wallet service
 func NewWalletService(db *postgres.StorageConn, exchanger *exchanger.ExchangerClient) *WalletService {
 	return &WalletService{
 		db:        db,
@@ -22,6 +28,21 @@ func NewWalletService(db *postgres.StorageConn, exchanger *exchanger.ExchangerCl
 	}
 }
 
+// ExchangeHandler godoc
+// @Summary      Exchange currency
+// @Description  Exchange one currency for another based on the current exchange rate
+// @Tags         Wallet
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+//
+//	@Param       input body ExchangeRequest true "Exchange information"
+//
+// @Success      200  {object}  map[string]string "Exchange successful"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      400  {object}  map[string]string "Invalid input"
+// @Failure      500  {object}  map[string]string "Internal Server Error"
+// @Router       /api/v1/wallet/exchange [post]
 func (s *WalletService) ExchangeHandler(c *gin.Context) {
 	var req struct {
 		FromCurrency string  `json:"from_currency" binding:"required"`
@@ -29,7 +50,6 @@ func (s *WalletService) ExchangeHandler(c *gin.Context) {
 		Amount       float64 `json:"amount" binding:"required,gt=0"`
 	}
 
-	// Декодируем тело запроса
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
@@ -41,7 +61,6 @@ func (s *WalletService) ExchangeHandler(c *gin.Context) {
 		return
 	}
 
-	// Выполняем обмен валют
 	ctx := c.Request.Context()
 	err := s.Exchange(ctx, userID.(int), req.FromCurrency, req.ToCurrency, req.Amount)
 	if err != nil {
@@ -52,15 +71,12 @@ func (s *WalletService) ExchangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Exchange successful"})
 }
 
-// Exchange выполняет обмен валют
 func (s *WalletService) Exchange(ctx context.Context, userID int, fromCurrency, toCurrency string, amount float64) error {
-	// 1. Получаем курс обмена из кеша или gRPC
 	exchangeRate, err := s.exchanger.GetExchangeRate(ctx, fromCurrency, toCurrency)
 	if err != nil {
 		return err
 	}
 
-	// 2. Открываем транзакцию
 	tx, err := s.db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -71,7 +87,6 @@ func (s *WalletService) Exchange(ctx context.Context, userID int, fromCurrency, 
 		}
 	}()
 
-	// 3. Уменьшаем баланс в исходной валюте
 	withdrawQuery := `
 		UPDATE wallet
 		SET amount = amount - $1
@@ -82,7 +97,6 @@ func (s *WalletService) Exchange(ctx context.Context, userID int, fromCurrency, 
 		return err
 	}
 
-	// 4. Увеличиваем баланс в целевой валюте
 	toAmount := amount * exchangeRate
 	depositQuery := `
 		UPDATE wallet
@@ -94,7 +108,6 @@ func (s *WalletService) Exchange(ctx context.Context, userID int, fromCurrency, 
 		return err
 	}
 
-	// 5. Фиксируем транзакцию
 	if err := tx.Commit(); err != nil {
 		return err
 	}
